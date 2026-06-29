@@ -15,7 +15,7 @@ export class AppController {
   @Get('api/ping')
   ping(): TestPingResponse {
     return {
-      message: 'pong from nest-api',
+      message: 'pong from nest-api!!',
       service: 'nest-api',
       timestamp: new Date().toISOString(),
     };

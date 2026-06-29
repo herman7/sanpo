@@ -36,5 +36,5 @@ COPY --from=builder --chown=nextjs:nodejs /repo/apps/web/.next/static ./apps/web
 COPY --from=builder /repo/apps/web/public ./apps/web/public
 
 USER nextjs
-EXPOSE 3008
+EXPOSE 3000
 CMD ["node", "apps/web/server.js"]
