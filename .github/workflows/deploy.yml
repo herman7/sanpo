@@ -3,6 +3,7 @@ name: Deploy
 on:
   push:
     branches: [master]
+  workflow_dispatch:
 
 env:
   ECR_REGISTRY: ${{ secrets.ECR_REGISTRY }}
@@ -28,7 +29,7 @@ jobs:
 
   deploy-web:
     needs: changes
-    if: needs.changes.outputs.web == 'true' # ← 只有相关文件变更才触发
+    if: ${{ needs.changes.outputs.web == 'true' || github.event_name == 'workflow_dispatch' }} # ← 相关文件变更或手动触发
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -41,17 +42,17 @@ jobs:
       - name: Build & push web image
         run: |
           aws ecr get-login-password | docker login --username AWS --password-stdin $ECR_REGISTRY
-          docker build -f apps/web/Dockerfile -t $ECR_REGISTRY/sanpo/web:${{ github.sha }} .
-          docker push $ECR_REGISTRY/sanpo/web:${{ github.sha }}
+          docker build -f apps/web/Dockerfile -t $ECR_REGISTRY/sanpo-web:${{ github.sha }} .
+          docker push $ECR_REGISTRY/sanpo-web:${{ github.sha }}
       - name: Deploy to ECS
         run: |
           aws ecs update-service \
             --cluster sanpo-prod \
-            --service sanpo/web \
+            --service sanpo-web \
             --force-new-deployment
   deploy-nest-api:
     needs: changes
-    if: needs.changes.outputs.nest-api == 'true' # ← web 和 api 独立部署，互不影响
+    if: ${{ needs.changes.outputs.nest-api == 'true' || github.event_name == 'workflow_dispatch' }} # ← 相关文件变更或手动触发；web 和 api 独立部署
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -64,11 +65,11 @@ jobs:
       - name: Build & push web image
         run: |
           aws ecr get-login-password | docker login --username AWS --password-stdin $ECR_REGISTRY
-          docker build -f apps/web/Dockerfile -t $ECR_REGISTRY/sanpo/nest-api:${{ github.sha }} .
-          docker push $ECR_REGISTRY/sanpo/nest-api:${{ github.sha }}
+          docker build -f apps/web/Dockerfile -t $ECR_REGISTRY/sanpo-nest-api:${{ github.sha }} .
+          docker push $ECR_REGISTRY/sanpo-nest-api:${{ github.sha }}
       - name: Deploy to ECS
         run: |
           aws ecs update-service \
             --cluster sanpo-prod \
-            --service sanpo/nest-api \
+            --service sanpo-nest-api \
             --force-new-deployment
