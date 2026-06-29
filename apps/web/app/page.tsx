@@ -25,7 +25,7 @@ export default async function Home() {
 
   return (
     <div style={{ padding: 24 }}>
-      <h1>web → nest-api connectivity test</h1>
+      <h1>web → nest-api connectivity test!</h1>
       <p>Target: {NEST_API_URL}/api/ping</p>
       {error ? (
         <p style={{ color: 'red' }}>❌ Failed: {error}</p>
