@@ -1,0 +1,71 @@
+# ===========================
+# 依赖
+# ===========================
+node_modules/
+.pnpm-store/
+
+# ===========================
+# Next.js (apps/web)
+# ===========================
+apps/web/.next/
+apps/web/out/
+apps/web/.vercel
+
+# ===========================
+# NestJS (apps/api)
+# ===========================
+apps/api/dist/
+
+# ===========================
+# 共享包构建产物 (packages/*)
+# ===========================
+packages/*/dist/
+
+# ===========================
+# 环境变量（最重要，绝对不能提交）
+# ===========================
+.env
+.env.local
+.env.*.local
+.env.development
+.env.production
+.env.test
+
+# ===========================
+# Turborepo
+# ===========================
+.turbo/
+
+# ===========================
+# 日志
+# ===========================
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# ===========================
+# 操作系统
+# ===========================
+.DS_Store           # macOS
+Thumbs.db           # Windows
+desktop.ini         # Windows
+
+# ===========================
+# 编辑器
+# ===========================
+.vscode/            # 如果团队统一用 VSCode 可以删掉这行，共享配置
+.idea/              # JetBrains
+*.swp               # Vim
+
+# ===========================
+# Docker
+# ===========================
+.dockerignore
+
+# ===========================
+# AWS / Terraform
+# ===========================
+infra/terraform/.terraform/
+infra/terraform/*.tfstate
+infra/terraform/*.tfstate.backup
+infra/terraform/*.tfvars      # 可能含有密钥，不提交
