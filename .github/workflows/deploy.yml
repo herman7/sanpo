@@ -7,6 +7,8 @@ on:
 
 env:
   ECR_REGISTRY: ${{ secrets.ECR_REGISTRY }}
+  AWS_REGION: ap-northeast-1
+  ECS_CLUSTER: sanpo-prod
 
 jobs:
   changes:
@@ -31,6 +33,11 @@ jobs:
     needs: changes
     if: ${{ needs.changes.outputs.web == 'true' || github.event_name == 'workflow_dispatch' }} # ← 相关文件变更或手动触发
     runs-on: ubuntu-latest
+    env:
+      ECR_REPO: sanpo-web        # ECR 仓库名
+      ECS_SERVICE: sanpo-web     # ECS 服务名
+      TASK_FAMILY: sanpo-web     # Task Definition 家族名（控制台里那个名字，不含 :revision）
+      CONTAINER_NAME: web        # Task Definition 里 container 的 name
     steps:
       - uses: actions/checkout@v4
       - name: Configure AWS credentials
@@ -38,22 +45,46 @@ jobs:
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ap-northeast-1
+          aws-region: ${{ env.AWS_REGION }}
+
       - name: Build & push web image
         run: |
           aws ecr get-login-password | docker login --username AWS --password-stdin $ECR_REGISTRY
-          docker build -f apps/web/Dockerfile -t $ECR_REGISTRY/sanpo-web:${{ github.sha }} .
-          docker push $ECR_REGISTRY/sanpo-web:${{ github.sha }}
-      - name: Deploy to ECS
+          docker build -f apps/web/Dockerfile -t $ECR_REGISTRY/$ECR_REPO:${{ github.sha }} .
+          docker push $ECR_REGISTRY/$ECR_REPO:${{ github.sha }}
+
+      - name: Download current task definition
         run: |
-          aws ecs update-service \
-            --cluster sanpo-prod \
-            --service sanpo-web \
-            --force-new-deployment
+          aws ecs describe-task-definition --task-definition $TASK_FAMILY \
+            --query 'taskDefinition' \
+            | jq 'del(.taskDefinitionArn, .revision, .status, .requiresAttributes, .compatibilities, .registeredAt, .registeredBy)' \
+            > task-definition.json
+
+      - name: Render new image into task definition
+        id: render
+        uses: aws-actions/amazon-ecs-render-task-definition@v1
+        with:
+          task-definition: task-definition.json
+          container-name: ${{ env.CONTAINER_NAME }}
+          image: ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPO }}:${{ github.sha }}
+
+      - name: Register new task definition & deploy to ECS
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v2
+        with:
+          task-definition: ${{ steps.render.outputs.task-definition }}
+          service: ${{ env.ECS_SERVICE }}
+          cluster: ${{ env.ECS_CLUSTER }}
+          wait-for-service-stability: true
+
   deploy-nest-api:
     needs: changes
     if: ${{ needs.changes.outputs.nest-api == 'true' || github.event_name == 'workflow_dispatch' }} # ← 相关文件变更或手动触发；web 和 api 独立部署
     runs-on: ubuntu-latest
+    env:
+      ECR_REPO: sanpo-nest-api
+      ECS_SERVICE: sanpo-nest-api
+      TASK_FAMILY: sanpo-nest-api
+      CONTAINER_NAME: nest-api
     steps:
       - uses: actions/checkout@v4
       - name: Configure AWS credentials
@@ -61,15 +92,33 @@ jobs:
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ap-northeast-1
-      - name: Build & push web image
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Build & push nest-api image
         run: |
           aws ecr get-login-password | docker login --username AWS --password-stdin $ECR_REGISTRY
-          docker build -f apps/web/Dockerfile -t $ECR_REGISTRY/sanpo-nest-api:${{ github.sha }} .
-          docker push $ECR_REGISTRY/sanpo-nest-api:${{ github.sha }}
-      - name: Deploy to ECS
+          docker build -f apps/nest-api/Dockerfile -t $ECR_REGISTRY/$ECR_REPO:${{ github.sha }} .
+          docker push $ECR_REGISTRY/$ECR_REPO:${{ github.sha }}
+
+      - name: Download current task definition
         run: |
-          aws ecs update-service \
-            --cluster sanpo-prod \
-            --service sanpo-nest-api \
-            --force-new-deployment
+          aws ecs describe-task-definition --task-definition $TASK_FAMILY \
+            --query 'taskDefinition' \
+            | jq 'del(.taskDefinitionArn, .revision, .status, .requiresAttributes, .compatibilities, .registeredAt, .registeredBy)' \
+            > task-definition.json
+
+      - name: Render new image into task definition
+        id: render
+        uses: aws-actions/amazon-ecs-render-task-definition@v1
+        with:
+          task-definition: task-definition.json
+          container-name: ${{ env.CONTAINER_NAME }}
+          image: ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPO }}:${{ github.sha }}
+
+      - name: Register new task definition & deploy to ECS
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v2
+        with:
+          task-definition: ${{ steps.render.outputs.task-definition }}
+          service: ${{ env.ECS_SERVICE }}
+          cluster: ${{ env.ECS_CLUSTER }}
+          wait-for-service-stability: true
