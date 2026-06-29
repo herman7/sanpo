@@ -4,6 +4,9 @@ on:
   push:
     branches: [master]
 
+env:
+  ECR_REGISTRY: ${{ secrets.ECR_REGISTRY }}
+
 jobs:
   changes:
     runs-on: ubuntu-latest
@@ -61,11 +64,11 @@ jobs:
       - name: Build & push web image
         run: |
           aws ecr get-login-password | docker login --username AWS --password-stdin $ECR_REGISTRY
-          docker build -f apps/web/Dockerfile -t $ECR_REGISTRY/sanpo-web:${{ github.sha }} .
-          docker push $ECR_REGISTRY/sanpo-web:${{ github.sha }}
+          docker build -f apps/web/Dockerfile -t $ECR_REGISTRY/nest-api:${{ github.sha }} .
+          docker push $ECR_REGISTRY/nest-api:${{ github.sha }}
       - name: Deploy to ECS
         run: |
           aws ecs update-service \
             --cluster sanpo-prod \
-            --service sanpo-web \
+            --service nest-api \
             --force-new-deployment

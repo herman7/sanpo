@@ -11,8 +11,6 @@ WORKDIR /repo
 FROM base AS deps
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
 COPY apps/web/package.json ./apps/web/
-COPY packages/types/package.json ./packages/types/
-COPY packages/config/package.json ./packages/config/
 RUN pnpm install --frozen-lockfile # 安装所有依赖，使用冻结锁文件，避免版本冲突
 
 # Stage 2: builder（构建阶段）
@@ -20,7 +18,6 @@ FROM base AS builder
 COPY --from=deps /repo/node_modules ./node_modules
 COPY --from=deps /repo/apps/web/node_modules ./apps/web/node_modules
 COPY . .
-RUN pnpm --filter @sanpo/types build
 RUN pnpm --filter @sanpo/web build
 
 # Stage 3: runner（运行阶段）（只保留运行时必要文件）
@@ -36,5 +33,5 @@ COPY --from=builder --chown=nextjs:nodejs /repo/apps/web/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /repo/apps/web/.next/static ./.next/static
 
 USER nextjs
-EXPOSE 3000
+EXPOSE 3008
 CMD ["node", "server.js"]
